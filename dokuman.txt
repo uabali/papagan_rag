@@ -1,27 +1,50 @@
-Bir RAG sistemi şu 5 adımdan oluşur:
+Bu proje, bilgisayarinizdaki PDF dosyalarini okuyup, icine sorular sorabileceginiz yerel bir yapay zeka sistemidir.
+ Sistem sadece PDF icerigini kullanir, disaridan bilgi eklemez.
 
-Document Loader (Yükleyici): Verinizi (PDF, TXT, Web sitesi) sisteme yükler.
-Text Splitter (Bölücü): Yüklenen metni daha küçük, anlamlı parçalara (chunk) böler.
-Embedding Model (Gömme Modeli): Metin parçalarını matematiksel vektörlere çevirir (Örn: OpenAIEmbeddings).
-Vector Store (Vektör Veritabanı): Bu vektörleri kaydeder ve benzerlik araması yapılmasını sağlar (Örn: ChromaDB - kurulum gerektirmez, yerel çalışır).
-Retrieval Chain (Sorgu Zinciri): Kullanıcının sorusunu alır, veritabanından ilgili parçaları bulur ve LLM'e (GPT) göndererek cevabı oluşturur.
+ Ne Yapar?
 
-ollama uygulamasi cihazda olmali ve proje calistirilmadan once calistirilmali!
-ilk olarak bir sanl ortam acilmali.
-sanal ortam aktifken şu komutları çalıştırın:
+data/ klasorundeki ilk 5 PDF dosyasini otomatik yukler
 
+Metinleri parcalara ayirir
+
+Bu parcalari vektor hale getirir
+
+Sorularinizi PDF icerigine gore cevaplar
+
+PDF’te yoksa su cevabi verir:
+
+Baglamda cevap bulunamadi.
+
+
+Gereksinimler
+
+Ollama Kurulu Olmali
+
+Bu proje LLM olarak Ollama kullanir. Calistirmadan once:
+
+ollama pull llama3:8b
+
+
+Ollama arka planda acik olmali.
+
+Sanal Ortam Olustur ve Aktif Et
+python -m venv env
+env\Scripts\activate
+
+Kutuphaneleri Yukle
 pip install -r requirements.txt
-Embedding modeli(bge-m3):  pip install -U langchain langchain-community sentence-transformers transformers torch faiss-cpu
-LLM modeli: ollama pull llama3:8b
+
+Projeyi Calistirma
+python main.py
 
 
-Mimari (adım adım)
+Calistiktan sonra terminalde soru sorabilirsin:
 
-Document Loader: PyPDFLoader("data/yzetik.pdf") PDF’i okuyup Document listesi (metin + metadata, ör. page) üretir.
-Text Splitter: RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120) dokümanı anlamlı parçalara (chunks) böler. Bu parçalar docs listesi olur.
-Embedding Model: HuggingFaceEmbeddings(model_name="BAAI/bge-m3", ...) her chunk için vektör (embedding) üretir. Bu işlem ilk kez ağır olabilir (model indirme + embed hesaplama).
-Vector Store (Chroma): Chroma.from_documents(...) ile embedding’leri ve doküman parçalarını local vektör DB’ye kaydedersin. persist_directory="./chroma_db" sayesinde bir kez oluşturduktan sonra tekrar kullanabilirsin. Eğer ./chroma_db varsa kod DB’yi yeniden açıyor, yeniden embed üretmiyor.
-Retriever: vectorstore.as_retriever(search_type="similarity", search_kwargs={"k":4}) sorguya en benzer k chunk’ı döndürür.
-LLM (Ollama): Ollama(model="llama3:8b-instruct-q4") çağrıları LLM’e gönderir. Ollama local daemon/servis olarak çalışmalı ve model daha önce ollama pull ... ile indirilmiş olmalı.
-RetrievalQA Chain: RetrievalQA.from_chain_type(llm=..., retriever=..., return_source_documents=True) sorguyu retriever ile ilgili chunk’ları bulup LLM’e verir, LLM’den gelen cevabı ve kaynak chunk’ları döndürür.
-Run Loop: Kullanıcıdan soru alınır; chain çalıştırılır (chain.invoke({"query": query})) ve cevap + kaynak sayfa bilgileri yazdırılır.
+Kullanici: Yazilim tasarimi nedir?
+Cevap: ...
+
+
+Cikmak icin:
+
+exit
+
