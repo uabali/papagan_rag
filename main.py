@@ -60,10 +60,11 @@ else:
         persist_directory="./chroma_db"
     )
 
-llm = Ollama(
-    model="llama3:8b",
+"""llm = Ollama(
+    model="llama3",
     temperature=0.1
-)
+)"""
+
 
 retriever = vectorstore.as_retriever(
     search_type="similarity",
