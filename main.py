@@ -10,6 +10,12 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.llms import Ollama
+from rich.console import Console
+from rich.panel import Panel
+from rich.text import Text
+from rich.align import Align
+from rich.layout import Layout
+import sys
 ##
 load_dotenv()
 PDF_FOLDER = "data"
@@ -147,33 +153,113 @@ def create_rag_chain(vectorstore):
         | StrOutputParser()
     )
 
+def display_welcome_screen():
+    """Görsel hoş geldiniz ekranını göster."""
+    console = Console()
+    
+    # Ana başlık
+    papagan_title = """
+    ██████╗  █████╗ ██████╗  █████╗  ██████╗  █████╗ ██╗   ██╗
+    ██╔══██╗██╔══██╗██╔══██╗██╔══██╗██╔════╝ ██╔══██╗██║   ██║
+    ██████╔╝███████║██████╔╝███████║██║  ███╗███████║██║   ██║
+    ██╔═══╝ ██╔══██║██╔═══╝ ██╔══██║██║   ██║██╔══██║██║   ██║
+    ██║     ██║  ██║██║     ██║  ██║╚██████╔╝██║  ██║╚██████╔╝
+    ╚═╝     ╚═╝  ╚═╝╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ 
+    """
+    
+    title_text = Text(papagan_title, style="bold cyan")
+    
+    # Açıklama metni
+    description = Text(
+        "🦜 Akıllı RAG Sistemi - Sorularınıza cevap vermeye hazır!",
+        justify="center",
+        style="bold yellow"
+    )
+    
+    # Bilgilendirme paneli
+    info_content = Text()
+    info_content.append("💡 İpuçları:\n", style="bold green")
+    info_content.append("  • Sorunuzu yazın ve Enter tuşuna basın\n")
+    info_content.append("  • Çıkmak için ", style="white")
+    info_content.append("exit", style="bold red")
+    info_content.append(" veya ", style="white")
+    info_content.append("quit", style="bold red")
+    info_content.append(" yazın\n", style="white")
+    info_content.append("  • ", style="white")
+    info_content.append("Ctrl+C", style="bold magenta")
+    info_content.append(" tuşu ile de çıkabilirsiniz", style="white")
+    
+    # Paneller oluştur
+    console.print(Align.center(title_text))
+    console.print(Align.center(description))
+    console.print()
+    console.print(Panel(
+        info_content,
+        border_style="cyan",
+        title="[bold]Yardım[/bold]",
+        expand=False,
+        width=60
+    ))
+    console.print()
+
 def main():
+    console = Console()
     vectorstore = initialize_vectorstore()
     rag_chain = create_rag_chain(vectorstore)
     
     if not rag_chain:
-        print("Failed to initialize RAG chain. Please check your data.")
+        error_panel = Panel(
+            "[bold red]Hata![/bold red] RAG zinciri başlatılamadı.\nLütfen verilerinizi kontrol edin.",
+            border_style="red",
+            title="[bold red]Başlatma Hatası[/bold red]"
+        )
+        console.print(error_panel)
         return
 
-    print("\n")
-    print("PAPAGAN")
-    print("\n")
+    display_welcome_screen()
 
     while True:
         try:
-            user_input = input("\nUser: ")
-            if not user_input.strip(): continue
-            if user_input.lower() in ["exit", "quit"]: break
+            # Kullanıcı girdisi
+            user_input = console.input("[bold cyan]👤 Siz:[/bold cyan] ").strip()
             
-            print("Papagan:", end="", flush=True)
+            if not user_input:
+                continue
+            
+            if user_input.lower() in ["exit", "quit"]:
+                farewell = Panel(
+                    "[bold yellow]Görüşmek üzere! 🦜[/bold yellow]",
+                    border_style="yellow",
+                    title="[bold]Hoşça Kalın[/bold]"
+                )
+                console.print(farewell)
+                break
+            
+            # Papagan cevabı
+            console.print("[bold magenta]🦜 Papagan:[/bold magenta] ", end="", soft_wrap=True)
+            response_text = ""
             for chunk in rag_chain.stream(user_input):
-                print(chunk, end="", flush=True)
-            print()
+                response_text += chunk
+                console.print(chunk, end="", soft_wrap=True)
+            console.print()
+            console.print()
             
         except KeyboardInterrupt:
+            console.print()
+            farewell = Panel(
+                "[bold yellow]Program sonlandırıldı. Hoşça kalın! 👋[/bold yellow]",
+                border_style="yellow",
+                title="[bold]Çıkış[/bold]"
+            )
+            console.print(farewell)
             break
         except Exception as e:
-            print(f"Error: {e}")
+            error_msg = Panel(
+                f"[bold red]{str(e)}[/bold red]",
+                border_style="red",
+                title="[bold red]Hata[/bold red]"
+            )
+            console.print(error_msg)
 
 if __name__ == "__main__":
     main()
