@@ -11,6 +11,7 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.llms import Ollama
+from langchain_openai import ChatOpenAI
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -81,12 +82,19 @@ vectorstore = initialize_vectorstore()
 
 # LLM'i başlat
 print("🤖 Ollama LLM başlatılıyor...")
-llm = Ollama(
+"""llm = Ollama(
     model="llama3:8b",
     temperature=0.1
 )
+"""
 
 
+llm = ChatOpenAI(
+    base_url="http://localhost:1234/v1",
+    api_key="lm-studio",
+    model_name="qwen3-vl-2b-instruct",
+    temperature=0.1
+)
 
 
 
