@@ -16,6 +16,31 @@ PDF_FOLDER = "data"
 DB_DIR = "./chroma_db"
 os.makedirs(PDF_FOLDER, exist_ok=True)
 
+def validate_file_constraints(current_count, new_files):
+    MAX_BATCH = 50
+    MAX_TOTAL = 200
+    
+    # 1. Check: Batch Size
+    if len(new_files) > MAX_BATCH:
+        print(f"\n[ERROR] Tek seferde en fazla {MAX_BATCH} dosya yüklenebilir.")
+        print(f"Tespit edilen yeni dosya: {len(new_files)}")
+        excess = len(new_files) - MAX_BATCH
+        print(f"Lütfen {excess} adet dosyayı siliniz.")
+        print("Yeni dosyalar (ilk 10):")
+        for f in new_files[:10]:
+            print(f" - {os.path.basename(f)}")
+        if len(new_files) > 10: print(" ...")
+        return False
+
+    # 2. Check: Total Size
+    if current_count + len(new_files) > MAX_TOTAL:
+        print(f"\n[ERROR] Maksimum {MAX_TOTAL} dosya limitine ulaşıldı.")
+        print(f"Mevcut: {current_count}, Eklenecek: {len(new_files)}")
+        print("Lütfen dosya sayısını azaltınız.")
+        return False
+        
+    return True
+
 def initialize_vectorstore():
     """Initializing Vector Database."""
     print("Initializing Vector Database...")
@@ -31,9 +56,47 @@ def initialize_vectorstore():
     if os.path.exists(DB_DIR):
         print("Loading existing ChromaDB...")
         vectorstore = Chroma(persist_directory=DB_DIR, embedding_function=embeddings)
+        
+        # Check for new files to add incrementally
+        print("Checking for new files...")
+        existing_data = vectorstore.get()
+        existing_sources = set()
+        if existing_data and 'metadatas' in existing_data:
+            for m in existing_data['metadatas']:
+                if m and 'source' in m:
+                    existing_sources.add(m['source'])
+        
+        # Get all current files
+        all_files = glob.glob(os.path.join(PDF_FOLDER, "*.pdf"))
+        new_files = [f for f in all_files if f not in existing_sources]
+        
+        if new_files:
+            if not validate_file_constraints(len(existing_sources), new_files):
+                print("Skipping new file addition due to constraints.")
+                return vectorstore
+
+            print(f"Found {len(new_files)} new files. Adding to DB...")
+            new_docs_content = []
+            for f in new_files:
+                try:
+                    new_docs_content.extend(PyPDFLoader(f).load())
+                except Exception as e:
+                    print(f"Skipping {f}: {e}")
+            
+            if new_docs_content:
+                splitter = RecursiveCharacterTextSplitter(chunk_size=800, chunk_overlap=120)
+                chunks = splitter.split_documents(new_docs_content)
+                vectorstore.add_documents(chunks)
+                print(f"Successfully added {len(new_files)} new files.")
+        else:
+            print("No new files to add.")
     else:
         print("Creating new ChromaDB from PDFs...")
-        files = glob.glob(os.path.join(PDF_FOLDER, "*.pdf"))[:5] 
+        files = glob.glob(os.path.join(PDF_FOLDER, "*.pdf"))
+        
+        if not validate_file_constraints(0, files):
+            return None
+
         documents = []
         for f in files:
             try:
