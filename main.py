@@ -10,8 +10,15 @@ from langchain_core.prompts import PromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.runnables import RunnablePassthrough
 from langchain_community.llms import Ollama
-##
+import sounddevice as sd
+import soundfile as sf
+import numpy as np
+import whisper
+import tempfile
+
+
 load_dotenv()
+
 PDF_FOLDER = "data"
 DB_DIR = "./chroma_db"
 os.makedirs(PDF_FOLDER, exist_ok=True)
@@ -147,6 +154,39 @@ def create_rag_chain(vectorstore):
         | StrOutputParser()
     )
 
+WHISPER_MODEL = None
+
+def get_voice_input():
+    global WHISPER_MODEL
+    if WHISPER_MODEL is None:
+        print("Loading Whisper model...")
+        WHISPER_MODEL = whisper.load_model("base")
+
+    fs = 44100
+    print("Press Enter to start recording...")
+    input()
+    print("Recording... Press Enter to stop.")
+
+    recording = []
+    def callback(indata, frames, time, status):
+        recording.append(indata.copy())
+
+    with sd.InputStream(samplerate=fs, channels=1, callback=callback):
+        input()
+
+    if not recording:
+        return ""
+
+    audio = np.concatenate(recording, axis=0)
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
+        sf.write(tmp.name, audio, fs)
+        path = tmp.name
+
+    print("Transcribing...")
+    result = WHISPER_MODEL.transcribe(path, language="tr")
+    os.remove(path)
+    return result["text"]
+
 def main():
     vectorstore = initialize_vectorstore()
     rag_chain = create_rag_chain(vectorstore)
@@ -161,9 +201,16 @@ def main():
 
     while True:
         try:
-            user_input = input("\nUser: ")
+            choice = input("\nType text or 'v' for voice (q to quit): ")
+            if choice.lower() == 'q': break
+
+            if choice.lower() == 'v':
+                user_input = get_voice_input()
+                print(f"Transcribed: {user_input}")
+            else:
+                user_input = choice
+
             if not user_input.strip(): continue
-            if user_input.lower() in ["exit", "quit"]: break
             
             print("Papagan:", end="", flush=True)
             for chunk in rag_chain.stream(user_input):

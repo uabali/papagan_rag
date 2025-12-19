@@ -1,173 +1,174 @@
-# RAG Sistemi
+# Papagan RAG - Talk to Your PDFs
 
-Bu proje, bilgisayarinizdaki PDF dosyalarini okuyup, icine sorular sorabileceginiz yerel bir yapay zeka sistemidir. Sistem sadece PDF icerigini kullanir, disaridan bilgi eklemez.
+A smart local AI that reads your PDFs and answers questions about them. Nothing leaves your computer - it's all private and runs offline.
 
-## Sistem Mimarisi
+## What Does It Do?
+
+Ever wanted to ask questions about your massive PDF collection without reading through everything? That's exactly what this does. 
+
+- Drop your PDFs in the `data/` folder
+- Ask questions in **text** or **voice** (yep, you can just talk to it!)
+- Get answers in Turkish based only on what's actually in your documents
+- If it's not in the PDFs, it'll tell you straight up instead of making stuff up
+
+**New:** Voice input powered by OpenAI Whisper - just speak your question instead of typing!
+
+## How It Works
 
 ![RAG Architecture](https://github.com/It-Does-Not-Actually-Matter/papagan_rag/raw/main/rag.jpg)
 
-Sistem 5 temel asamadan olusur:
-1. **Document Loading**: PDF dosyalari yuklenir
-2. **Splitting**: Belgeler kucuk parcalara bolunur
-3. **Storage**: Parcalar vektorstore'da saklanir
-4. **Retrieval**: Sorguya en uygun parcalar bulunur
-5. **Output**: LLM ile cevap uretilir
+The system breaks down into 5 steps:
+1. **Load** - Reads your PDF files
+2. **Split** - Chops documents into bite-sized chunks
+3. **Store** - Saves them in a vector database
+4. **Search** - Finds the most relevant chunks for your question
+5. **Answer** - Uses an LLM to generate a response in Turkish
 
-## Ne Yapar?
+## What You Need
 
-- `data/` klasorundeki ilk 5 PDF dosyasini otomatik yukler
-- Metinleri 800 karakterlik parcalara ayirir (120 karakter bindirme ile)
-- BAAI/bge-m3 modeli ile embeddings olusturur
-- Chroma vektorstore kullanarak benzerligi hesaplar
-- Sorularinizi PDF icerigine gore cevaplar
-- PDF'te yoksa su cevabi verir: `Baglamda cevap bulunamadi.`
+### Ollama (Must Have)
 
-## Gereksinimler
-
-### Ollama Kurulu Olmali
-
-Bu proje LLM olarak Ollama kullanir. Calistirmadan once:
+This project uses Ollama for the language model. Before running anything:
 
 ```bash
 ollama pull llama3:8b
 ```
 
-Ollama arka planda calisir durumda olmali.
+Make sure Ollama is running in the background.
 
-### Python Kutuphaneleri
+### Python Stuff
 
-Sanal ortam olusturun ve aktif edin:
+Create a virtual environment and activate it:
 
 ```bash
 python -m venv env
-source env/bin/activate  # Linux/Mac
-# veya
-env\Scripts\activate  # Windows
+
+# On Windows:
+env\Scripts\activate
+
+# On Mac/Linux:
+source env/bin/activate
 ```
 
-Kutuphaneleri yukleyin:
+Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 
-## Kurulum
+**Note:** First run will download the Whisper model (~140MB) and the embedding model (~2GB). Grab some coffee.
 
-1. Projeyi klonlayin:
+## Setup
+
+1. Clone this repo:
 ```bash
 git clone https://github.com/It-Does-Not-Actually-Matter/papagan_rag.git
 cd papagan_rag
 ```
 
-2. `data/` klasoru olusturun ve PDF dosyalarinizi icine atin:
+2. Create a `data/` folder and throw your PDFs in there:
 ```bash
-mkdir -p data
-# PDF dosyalarinizi data/ klasorune kopyalayin
+mkdir data
+# Copy your PDF files into the data/ folder
 ```
 
-3. Sanal ortam olusturun ve bagimlilikari yukleyin:
+**Limits:**
+- Max 50 PDFs at once
+- Max 200 PDFs total
+- You'll get clear error messages if you hit these
+
+3. Set up Python environment:
 ```bash
 python -m venv env
-source env/bin/activate  # Linux/Mac veya env\Scripts\activate (Windows)
+env\Scripts\activate  # Windows
 pip install -r requirements.txt
 ```
 
-4. Ollama'nin calistigini dogrulayin:
+4. Verify Ollama is running:
 ```bash
 ollama list
 ```
 
-## Kullanim
+## How to Use
 
-### Terminal Modu
+### Command Line Mode (main.py)
 
-Projeyi calistirin:
+Just run:
 
 ```bash
 python main.py
 ```
 
-Terminal acildiginda sorular sorabilirsiniz:
+You'll see:
 
 ```
----RAG---
-Kullanici: Yazilim tasarimi nedir?
-Cevap: ...
+PAPAGAN
 
-Kullanici: Bu belgede ne anlatiliyor?
-Cevap: ...
-
-Kullanici: exit
+Type text or 'v' for voice (q to quit): 
 ```
 
-Cikmak icin `exit` yazin.
+**Text Input:** Type your question and hit Enter
+```
+Type text or 'v' for voice (q to quit): What is software design?
+Papagan: [Streams answer based on your PDFs...]
+```
 
-### API Modu (Open WebUI Entegrasyonu)
+**Voice Input:** Type `v`, then:
+1. Press Enter to start recording
+2. Speak your question
+3. Press Enter to stop
+4. It'll transcribe and answer
 
-RAG sistemini OpenAI-uyumlu bir API olarak calistirabilirsiniz:
+```
+Type text or 'v' for voice (q to quit): v
+Press Enter to start recording...
+Recording... Press Enter to stop.
+Transcribed: [Your question in text]
+Papagan: [Answer...]
+```
+
+Type `q` to quit.
+
+### Gradio Web UI (gradio_app.py)
+
+Want a prettier interface?
 
 ```bash
-python api.py
+python gradio_app.py
 ```
 
-API sunucusu `http://localhost:8000` adresinde calisir.
+Opens a chat interface in your browser at `http://localhost:7860`. Type your questions and get responses with a nice UI.
 
-#### API Endpoint'leri
+## Tech Stack
 
-| Endpoint | Method | Aciklama |
-|----------|--------|----------|
-| `/v1/models` | GET | Mevcut modelleri listeler |
-| `/v1/chat/completions` | POST | Sohbet tamamlama (RAG ile) |
-| `/health` | GET | Saglik kontrolu |
+| Component | What We Use |
+|-----------|-------------|
+| **Embedding Model** | BAAI/bge-m3 (multilingual) |
+| **LLM** | Llama3 8B via Ollama |
+| **Vector Database** | Chroma |
+| **Voice Recognition** | OpenAI Whisper (base model) |
+| **Chunk Size** | 800 characters |
+| **Chunk Overlap** | 120 characters |
+| **Similarity Search** | Top 5 matches |
+| **Temperature** | 0.1 (focused answers) |
 
-#### Open WebUI ile Kullanim
 
-1. Open WebUI'yi Docker ile kurun:
+## Troubleshooting
 
-```powershell
-docker run -d -p 3000:8080 --add-host=host.docker.internal:host-gateway -e OPENAI_API_BASE_URL=http://host.docker.internal:8000/v1 -e OPENAI_API_KEY=dummy -v open-webui:/app/backend/data --name open-webui --restart always ghcr.io/open-webui/open-webui:main
+**Whisper model not loading?**  
+First run downloads ~140MB. Check your internet connection.
+
+**No microphone detected?**  
+Make sure your mic is plugged in and permissions are granted.
+
+**Out of memory?**  
+Try using the `tiny` or `small` Whisper model instead of `base`. Edit line 161 in `main.py`:
+```python
+WHISPER_MODEL = whisper.load_model("small")  # or "tiny"
 ```
 
-2. Tarayicinizda `http://localhost:3000` adresine gidin
-3. Hesap olusturun (yerel, sadece sizin icin)
-4. Settings > Connections > OpenAI API bolumunde:
-   - API Base URL: `http://host.docker.internal:8000/v1`
-   - API Key: `dummy`
-5. Model olarak `papagan-rag` secin ve kullanmaya baslayin
+## License
 
-## Teknik Detaylar
+MIT License - do whatever you want with it.
 
-- **Embedding Model**: BAAI/bge-m3
-- **LLM**: Llama3 8B (Ollama)
-- **Vector Store**: Chroma
-- **Chunk Size**: 800 karakter
-- **Chunk Overlap**: 120 karakter
-- **Retrieval**: Top-6 similarity search
-- **Temperature**: 0.3 (daha deterministik cevaplar)
-
-## Ozellikler
-
-- Yerel calisir, internet gerektirmez
-- Sadece verdiginiz PDF'lerden cevap verir
-- Turkce cevaplar uretir (ASCII karakterler ile)
-- Chroma DB persist ile tekrar yukleme gerektirmez
-- Hallusinasyon onleme mekanizmasi
-- OpenAI-uyumlu API ile Open WebUI entegrasyonu
-- FastAPI tabanli REST API
-
-## Dosya Yapisi
-
-```
-papagan_rag/
-├── main.py              # Terminal modu (CLI)
-├── api.py               # API modu (Open WebUI entegrasyonu)
-├── requirements.txt     # Python bagimliliklar
-├── README.md           # Dokumantasyon
-├── data/               # PDF dosyalari (sizin olusturacaginiz)
-├── chroma_db/          # Vektorstore (otomatik olusur)
-└── .env                # Ortam degiskenleri (opsiyonel)
-```
-
-## Lisans
-
-MIT License
+---
