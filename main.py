@@ -130,7 +130,7 @@ def create_rag_chain(vectorstore):
     if not vectorstore: return None
     
     retriever = vectorstore.as_retriever(search_kwargs={"k": 5})
-    llm = Ollama(model="llama3:8b", temperature=0.1)
+    llm = Ollama(model="llama3:8b", temperature=0.3)
     
     prompt = PromptTemplate(
         input_variables=["context", "question"],
@@ -163,39 +163,56 @@ WHISPER_MODEL = None
 
 def get_voice_input():
     global WHISPER_MODEL
-    if WHISPER_MODEL is None:
-        print("Loading Whisper model...")
-        WHISPER_MODEL = whisper.load_model("base")
+    try:
+        if WHISPER_MODEL is None:
+            print("Loading Whisper model...")
+            WHISPER_MODEL = whisper.load_model("medium")
 
-    fs = 44100
-    print("Press Enter to start recording...")
-    input()
-    print("Recording... Press Enter to stop.")
-
-    recording = []
-    def callback(indata, frames, time, status):
-        recording.append(indata.copy())
-
-    with sd.InputStream(samplerate=fs, channels=1, callback=callback):
+        fs = 44100
+        print("Press Enter to start recording...")
         input()
+        print("Recording... Press Enter to stop.")
 
-    if not recording:
+        recording = []
+        def callback(indata, frames, time, status):
+            recording.append(indata.copy())
+
+        with sd.InputStream(samplerate=fs, channels=1, callback=callback):
+            input()
+
+        if not recording:
+            return ""
+
+        audio = np.concatenate(recording, axis=0)
+        
+        tmp_file = tempfile.NamedTemporaryFile(suffix=".wav", delete=False)
+        path = tmp_file.name
+        tmp_file.close()
+        
+        sf.write(path, audio, fs)
+        
+        print("Transcribing...")
+        audio_data, sr = sf.read(path)
+        audio_data = audio_data.flatten().astype(np.float32)
+        
+        if sr != 16000:
+            import librosa
+            audio_data = librosa.resample(audio_data, orig_sr=sr, target_sr=16000)
+        
+        result = WHISPER_MODEL.transcribe(audio_data, language="tr")
+        
+        try:
+            os.remove(path)
+        except Exception:
+            pass
+        
+        return result["text"]
+    except Exception as e:
+        print(f"Voice input error: {e}")
+        import traceback
+        traceback.print_exc()
         return ""
 
-    audio = np.concatenate(recording, axis=0)
-    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
-        sf.write(tmp.name, audio, fs)
-        path = tmp.name
-
-    print("Transcribing...")
-    result = WHISPER_MODEL.transcribe(path, language="tr")
-    
-    try:
-        os.remove(path)
-    except Exception:
-        pass
-    
-    return result["text"]
 
 def display_welcome_screen():
     """Görsel hoş geldiniz ekranını göster."""
